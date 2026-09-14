@@ -14,3 +14,11 @@ const WORKING_DIR = path.resolve(
 function getGit() {
   return simpleGit(WORKING_DIR);
 }
+
+async function assertGitRepo(git: any) {
+  const isRepo = await git.checkIsRepo().catch(() => false);
+
+  if (!isRepo) {
+    throw new Error("Not a git repository. Run `git init` first.");
+  }
+}
