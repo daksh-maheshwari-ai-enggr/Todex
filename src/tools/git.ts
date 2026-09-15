@@ -81,3 +81,130 @@ export const gitDiffTool = tool(
     }),
   }
 );
+
+// git-log tool
+
+export const gitLogTool = tool(
+  async ({ limit, author, since }) => {
+    try {
+      const git = getGit();
+
+      await assertGitRepo(git);
+
+      const options: any = {
+        maxCount: limit ?? 10,
+      };
+
+      if (author) {
+        options["--author"] = author;
+      }
+
+      if (since) {
+        options["--since"] = since;
+      }
+
+      const log = await git.log(options);
+
+      if (!log.all.length) {
+        return "No commits found";
+      }
+
+      const lines = log.all.map((c) => {
+        return `${c.hash.slice(0, 7)} | ${c.date.slice(
+          0,
+          10
+        )} | ${c.author_name.padEnd(20)} | ${c.message}`;
+      });
+
+      return `Recent commits (${log.all.length}):\n\n${lines.join("\n")}`;
+    } catch (err: any) {
+      return `Git log error: ${err.message}`;
+    }
+  },
+  {
+    name: "git_log",
+
+    description:
+      "Show recent git commit history with hash, date, author, and message.",
+
+    schema: z.object({
+      limit: z
+        .number()
+        .optional()
+        .describe("Number of commits to show (default: 10)"),
+
+      author: z
+        .string()
+        .optional()
+        .describe("Filter by author name or email"),
+
+      since: z
+        .string()
+        .optional()
+        .describe(
+          "Show commits since this date (e.g. '2024-01-01')"
+        ),
+    }),
+  }
+);
+
+
+// git-status tool
+
+export const gitStatusTool = tool(
+  async () => {
+    try {
+      const git = getGit();
+
+      await assertGitRepo(git);
+
+      const status = await git.status();
+
+      const lines: string[] = [];
+
+      if (status.staged.length) {
+        lines.push(`Staged: ${status.staged.join(", ")}`);
+      }
+
+      if (status.modified.length) {
+        lines.push(`Modified: ${status.modified.join(", ")}`);
+      }
+
+      if (status.not_added.length) {
+        lines.push(`Untracked: ${status.not_added.join(", ")}`);
+      }
+
+      if (status.deleted.length) {
+        lines.push(`Deleted: ${status.deleted.join(", ")}`);
+      }
+
+      if (status.conflicted.length) {
+        lines.push(`Conflicts: ${status.conflicted.join(", ")}`);
+      }
+
+      if (!lines.length) {
+        return "Working tree clean — nothing to commit";
+      }
+
+      return `Branch: ${status.current}\n\n${lines.join("\n")}`;
+    } catch (err: any) {
+      return `Git status error: ${err.message}`;
+    }
+  },
+  {
+    name: "git_status",
+
+    description:
+      "Show the current git status: staged, modified, untracked, and deleted files.",
+
+    schema: z.object({}),
+  }
+);
+
+
+export const gitTools = [
+  gitDiffTool,
+  gitLogTool,
+  gitStatusTool,
+];
+
