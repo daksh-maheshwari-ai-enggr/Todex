@@ -18,6 +18,7 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
+    "@babel/parser": "^8.0.5",
     "@langchain/core": "^1.2.11",
     "glob": "^13.0.6",
     "simple-git": "^3.36.0",
