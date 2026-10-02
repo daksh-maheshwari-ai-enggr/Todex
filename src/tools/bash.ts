@@ -2,22 +2,11 @@ import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { exec } from "child_process";
 import { promisify } from "util";
-import path from "path";
-import fs from "fs";
+import { WORKING_DIR, ensureWorkingDir } from "../workspace";
 
 const execAsync = promisify(exec);
 
-const WORKING_DIR = path.resolve(
-  process.cwd(),
-  "public/working-dir"
-);
-
 const MAX_OUTPUT_CHARS = 8000;
-
-const CORE_FACTS = [
-  "personal.name",
-  "personal.location",
-];
 
 const isWindows = process.platform === "win32";
 
@@ -48,12 +37,6 @@ const INTERACTIVE_PATTERNS = [
   /\b(?:python3?|node)\b(?!\s+-[^\s]+)?/i,
   /\bssh\b/i,
 ];
-
-async function ensureWorkingDir() {
-  await fs.promises.mkdir(WORKING_DIR, {
-    recursive: true,
-  });
-}
 
 function normalizeCommand(command: string): string {
   if (isWindows) {
@@ -102,7 +85,7 @@ function truncateOutput(output: string): string {
 
 export const bashTool = tool(
   async ({ command, timeout }) => {
-    await ensureWorkingDir();
+    ensureWorkingDir();
 
     // Block dangerous commands
     for (const pattern of BLOCKED_PATTERNS) {
@@ -235,16 +218,3 @@ export const bashTool = tool(
     }),
   }
 );
-
-// Test
-async function main() {
-  const res = await bashTool.invoke({
-    command: "mkdir ben",
-    timeout: 60,
-  });
-
-  console.log("res:", res);
-}
-
-// Uncomment to test
-// main();

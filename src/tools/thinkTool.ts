@@ -1,5 +1,5 @@
-import { tool } from "langchain";
-import { z } from "zod/v4";
+import { tool } from "@langchain/core/tools";
+import { z } from "zod";
 
 /**
  * Strategic reflection tool for research and planning.

@@ -2,11 +2,15 @@
   "name": "todex",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "bin": {
+    "todex": "dist/index.js"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
@@ -21,8 +25,12 @@
     "@babel/parser": "^8.0.5",
     "@langchain/cohere": "^1.1.0",
     "@langchain/core": "^1.2.11",
+    "@langchain/openai": "^1.6.2",
     "@langchain/pinecone": "^1.0.3",
+    "@pinecone-database/pinecone": "^5.1.2",
+    "dotenv": "^18.0.5",
     "glob": "^13.0.6",
+    "langchain": "^1.5.14",
     "simple-git": "^3.36.0",
     "uuid": "^14.0.2",
     "zod": "^4.6.4"

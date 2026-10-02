@@ -3,11 +3,13 @@ import { z } from "zod";
 import fs from "fs/promises";
 import path from "path";
 import { glob } from "glob";
+import { WORKING_DIR, ensureWorkingDir } from "../workspace";
 
-export const WORKING_DIR = path.resolve(
-  process.cwd(),
-  "public/agent-working-dir"
-);
+// Re-export from the unified workspace module so all existing importers
+// (todos, import graph, agent memory, RAG) share one source of truth.
+export { WORKING_DIR };
+
+ensureWorkingDir();
 
 // Directories to always exclude from file operations
 const IGNORE_DIRS = new Set([

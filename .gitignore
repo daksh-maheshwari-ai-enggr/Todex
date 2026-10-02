@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+
+# Agent scratch space / sandbox
+public/working-dir/
+public/agent-working-dir/
