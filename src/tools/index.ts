@@ -6,6 +6,7 @@ import { bashTool } from "./bash";
 import { astAnalyzeTool } from "./ast";
 import { think_tool } from "./thinkTool";
 import { filesystemTools } from "./fileSystem";
+import { createReactProjectTool } from "./createReactProject";
 import { gitTools } from "./git";
 import { graphTools } from "./importGraph";
 import { ragTools } from "./rag";
@@ -29,8 +30,8 @@ import { createTaskTool } from "./task/task";
  * group below (or add a new group).
  */
 export const toolGroups: Record<string, StructuredToolInterface[]> = {
-  /** Read/write/edit files, list dirs, grep, file tree. */
-  filesystem: filesystemTools,
+  /** Read/write/edit files, list dirs, grep, file tree, project scaffolding. */
+  filesystem: [...filesystemTools, createReactProjectTool],
 
   /** Execute shell commands inside the sandboxed working dir. */
   shell: [bashTool],
@@ -236,6 +237,7 @@ export {
   astAnalyzeTool,
   think_tool,
   filesystemTools,
+  createReactProjectTool,
   gitTools,
   graphTools,
   ragTools,
