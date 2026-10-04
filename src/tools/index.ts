@@ -42,7 +42,10 @@ export const toolGroups: Record<string, StructuredToolInterface[]> = {
   graph: graphTools,
 
   /** AST structure analysis of a single JS/TS file. */
-  ast: [astAnalyzeTool],
+  ast: [astAnalyzeTool],  //Updated to latest. Got 6 features, 49 bugfixes, and 33 other changes.
+  //code.claude.com/docs/en/changelog for details
+
+
 
   /** Semantic search + embedding over the codebase. */
   rag: ragTools,

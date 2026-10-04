@@ -50,7 +50,7 @@ export async function runAgentTurn(
   messages: BaseMessage[]
 ): Promise<BaseMessage[]> {
   // v3 streaming gives live tokens (.text) and a final state (.output).
-  const run = await agent.streamEvents({ messages }, { version: "v3" });
+  const run = await agent.streamEvents({ messages }, { version: "v3",recursionLimit:100 });
 
   for await (const message of run.messages as AsyncIterable<any>) {
     for await (const token of message.text as AsyncIterable<string>) {
