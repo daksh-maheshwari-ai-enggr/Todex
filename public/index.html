@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toodex - AI Coding Assistant</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+        .code-block {
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: 'Courier New', Courier, monospace;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 5px 0;
+            border: none;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        .install-btn {
+            background-color: #27ae60;
+        }
+        .install-btn:hover {
+            background-color: #219653;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section-title {
+            color: #3498db;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        .install-section {
+            background-color: #e8f4f8;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .install-section h2 {
+            color: #27ae60;
+            margin-bottom: 10px;
+        }
+        .install-section p {
+            margin-bottom: 10px;
+        }
+        .install-section .code-block {
+            background-color: #d4edda;
+        }
+        .install-section .btn {
+            margin: 5px;
+        }
+        .install-section .btn:hover {
+            background-color: #219653;
+        }
+        .install-section a {
+            color: #27ae60;
+        }
+        .install-section a:hover {
+            text-decoration: underline;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <h1>Toodex - AI Coding Assistant</h1>
+
+    <div class="container">
+        <div class="section">
+            <h2 class="section-title">About Toodex</h2>
+            <p>Toodex is an AI coding assistant that helps you write, debug, and optimize code.</p>
+            <p>It provides an interactive REPL with comprehensive tooling for code analysis, modification, and project management.</p>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Installation</h2>
+            <p>Install Toodex globally using npm:</p>
+            <div class="code-block">
+                npm install -g todex
+            </div>
+
+            <p>Or use our cURL installation script:</p>
+            <div class="code-block">
+                curl -fsSL https://raw.githubusercontent.com/yourusername/todex/main/install.sh | bash
+            </div>
+
+            <p>After installation, you can run Toodex in your terminal:</p>
+            <div class="code-block">
+                todex "write a function to calculate Fibonacci sequence"
+            </div>
+        </div>
+
+        <div class="section install-section">
+            <h2>Installation Guide</h2>
+            <p>Follow these steps to install Toodex:</p>
+            <ol>
+                <li>Make sure you have Node.js and npm installed. You can download them from <a href="https://nodejs.org/">https://nodejs.org/</a>.</li>
+                <li>Open your terminal and run the installation script:</li>
+                <div class="code-block">
+                    curl -fsSL https://raw.githubusercontent.com/yourusername/todex/main/install.sh | bash
+                </div>
+                <p>Or clone the repository and install manually:</li>
+                <div class="code-block">
+                    git clone https://github.com/yourusername/todex.git
+                    cd todex
+                    npm install
+                    npm run build
+                    npm link
+                </div>
+            </ol>
+            <p>After installation, you can run Toodex in your terminal:</p>
+            <div class="code-block">
+                todex
+            </div>
+            <p>To run in development mode:</p>
+            <div class="code-block">
+                cd todex
+                npm run dev
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Usage</h2>
+            <p>To use Toodex, you can either:</p>
+            <ul>
+                <li>Run it in one-shot mode with a prompt:</li>
+                <div class="code-block">
+                    todex "write a function to calculate Fibonacci sequence"
+                </div>
+                <li>Start the interactive REPL:</li>
+                <div class="code-block">
+                    todex
+                </div>
+            </ul>
+            <p>Available commands in the REPL:</p>
+            <div class="code-block">
+                /help - Show this help
+                /tools - List every registered tool
+                /model - Show the configured model fallback chain
+                /history - Show how many messages are in context
+                /clear - Forget the conversation so far
+                /exit, /quit - Leave the CLI
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Toodex is an AI coding assistant that helps you write, debug, and optimize code.</p>
+        <p>For more information, visit our documentation at <a href="https://your-docs-url.com">https://your-docs-url.com</a>.</p>
+    </div>
+</body>
+</html>

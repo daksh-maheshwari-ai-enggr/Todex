@@ -82,7 +82,7 @@ const rule = () => uiLine(dim("─".repeat(56)));
  * ------------------------------------------------------------------------ */
 
 /** Structural view of the `run.toolCalls` projection (v3 streaming). */
-interface ToolCallHandle {
+export interface ToolCallHandle {
   name: string;
   callId?: string;
   input: unknown;
@@ -171,7 +171,7 @@ function toolEnd(
  * TODO progress display
  * ------------------------------------------------------------------------ */
 
-interface TodoItem {
+export interface TodoItem {
   task: string;
   status: string;
 }
@@ -214,8 +214,43 @@ function todoFilePaths(filename: string): string[] {
   return paths;
 }
 
+/**
+ * Where an agent turn's output goes. The default implementation writes to
+ * the plain terminal (the readline REPL / one-shot mode); the Ink TUI in
+ * `cli/` provides its own sink that routes tokens, tool status and TODO
+ * updates into the React state store instead.
+ */
+export interface AgentTurnEvents {
+  /** Assistant text token streamed. */
+  token(text: string): void;
+  /** A tool call started. */
+  toolStart(call: ToolCallHandle): void;
+  /** A tool call finished. */
+  toolEnd(
+    call: ToolCallHandle,
+    durationMs: number,
+    failed: boolean,
+    errorMessage?: string
+  ): void;
+  /** The agent's TODO list changed (null when it could not be read). */
+  todos(todos: TodoItem[] | null): void;
+}
+
+/** Default sink: everything prints straight to the terminal. */
+export const terminalTurnEvents: AgentTurnEvents = {
+  token: writeTokens,
+  toolStart,
+  toolEnd,
+  todos: (todos) => {
+    if (todos) renderTodoPanel(todos);
+  },
+};
+
 /** Re-read the TODO list touched by a tool call and repaint the panel. */
-async function syncTodos(call: ToolCallHandle): Promise<void> {
+async function syncTodos(
+  call: ToolCallHandle,
+  events: AgentTurnEvents
+): Promise<void> {
   const args = (call.input ?? {}) as Record<string, unknown>;
   const filename = typeof args.filename === "string" ? args.filename : null;
 
@@ -228,7 +263,7 @@ async function syncTodos(call: ToolCallHandle): Promise<void> {
             task: String(t?.task ?? "(untitled)"),
             status: String(t?.status ?? "pending"),
           }));
-          renderTodoPanel(activeTodos);
+          events.todos(activeTodos);
           return;
         }
       } catch {
@@ -243,7 +278,7 @@ async function syncTodos(call: ToolCallHandle): Promise<void> {
       task: String(t?.task ?? "(untitled)"),
       status: String(t?.status ?? "pending"),
     }));
-    renderTodoPanel(activeTodos);
+    events.todos(activeTodos);
   }
 }
 
@@ -348,7 +383,7 @@ Anything else is sent to the agent as a request.
  * we only ever cut at a HumanMessage boundary, so an AI message that issued
  * tool calls is never separated from the ToolMessages that answer them.
  */
-function trimHistory(
+export function trimHistory(
   messages: BaseMessage[],
   max = MAX_HISTORY
 ): BaseMessage[] {
@@ -371,7 +406,8 @@ function trimHistory(
  */
 export async function runAgentTurn(
   agent: any,
-  messages: BaseMessage[]
+  messages: BaseMessage[],
+  events: AgentTurnEvents = terminalTurnEvents
 ): Promise<BaseMessage[]> {
   // v3 streaming gives live tokens (.text), tool call lifecycles
   // (.toolCalls), and a final state (.output).
@@ -384,11 +420,11 @@ export async function runAgentTurn(
     | AsyncIterable<ToolCallHandle>
     | undefined;
 
-  /** Stream assistant tokens to stdout. */
+  /** Stream assistant tokens to the active sink. */
   const consumeMessages = async (): Promise<void> => {
     for await (const message of run.messages as AsyncIterable<any>) {
       for await (const token of message.text as AsyncIterable<string>) {
-        writeTokens(token);
+        events.token(token);
       }
     }
   };
@@ -399,7 +435,7 @@ export async function runAgentTurn(
 
     for await (const call of toolCalls) {
       const startedAt = Date.now();
-      toolStart(call);
+      events.toolStart(call);
 
       let failed = false;
       let errorMessage: string | undefined;
@@ -411,13 +447,13 @@ export async function runAgentTurn(
         errorMessage = err?.message ?? String(err);
       }
 
-      toolEnd(call, Date.now() - startedAt, failed, errorMessage);
+      events.toolEnd(call, Date.now() - startedAt, failed, errorMessage);
 
       if (
         !failed &&
         (call.name === "write_todos" || call.name === "update_todos")
       ) {
-        await syncTodos(call);
+        await syncTodos(call, events);
       }
     }
   };
@@ -542,4 +578,43 @@ export async function runCli(): Promise<void> {
   rl.close();
   uiLine("");
   uiLine(dim("bye 👋"));
+}
+
+/**
+ * Launch the alternate full-screen TUI (the Ink app in `cli/`).
+ *
+ * The specifier is computed at runtime on purpose: the TUI has its own
+ * tsconfig/package in `cli/`, so it must stay out of this package's tsc
+ * program. `tsx` resolves the `.ts` source in dev; the compiled root build
+ * picks up `cli/dist`.
+ */
+export async function startTui(): Promise<void> {
+  const runningFromDist = __filename.split(path.sep).includes("dist");
+  const specifier = runningFromDist
+    ? "../cli/dist/index.js"
+    : "../cli/src/index.js";
+
+  // The TUI is a separate ESM package (ink is ESM-only): hand it everything
+  // it needs from the agent. Dependency injection keeps cli/ free of static
+  // imports of this package's sources, and the variable specifier keeps the
+  // TUI out of this package's tsc program.
+  const backend = {
+    createCodingAgent,
+    runAgentTurn,
+    trimHistory,
+    renderToolManifest: () => renderToolManifest(),
+    describeModelChain: () => describeModelChain(),
+    HumanMessage,
+  };
+
+  const tui: any = await import(specifier);
+  const start = tui?.startTui ?? tui?.default?.startTui;
+
+  if (typeof start !== "function") {
+    throw new Error(
+      "TUI entry (cli/src/index.ts) does not export startTui() — build the cli package with `npm run build` in cli/."
+    );
+  }
+
+  await start(backend);
 }

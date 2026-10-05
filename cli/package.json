@@ -1,0 +1,26 @@
+{
+  "name": "todex-cli",
+  "version": "1.0.0",
+  "description": "Full-screen Ink TUI for the Toodex AI coding agent",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "todex-tui": "dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.tsx",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ink": "^5.1.2",
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^18.3.12",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}
