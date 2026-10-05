@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import "dotenv/config";
+import "./env";
 import { HumanMessage } from "@langchain/core/messages";
 import { createCodingAgent } from "./agent";
 import { runCli, runAgentTurn, startTui } from "./cli";

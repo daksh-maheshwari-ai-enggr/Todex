@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./env";
 import { ChatOpenAI } from "@langchain/openai";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import {
