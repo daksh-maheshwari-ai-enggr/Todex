@@ -3,6 +3,7 @@ import { z } from "zod";
 import fs from "fs/promises";
 import path from "path";
 import { WORKING_DIR } from "./fileSystem";
+import { ensureMetadataDir } from "../workspace";
 
 /**
  * Agent memory / directory structure
@@ -56,6 +57,7 @@ function escapeRegex(value: string): string {
 }
 
 async function ensureAgentDir() {
+  ensureMetadataDir(AGENT_DIR);
   await fs.mkdir(MODULES_DIR, { recursive: true });
 
   try {

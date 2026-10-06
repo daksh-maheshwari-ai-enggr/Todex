@@ -5,6 +5,7 @@ import fs from "fs/promises";
 import path from "path";
 import { glob } from "glob";
 import { WORKING_DIR } from "./fileSystem";
+import { ensureMetadataDir } from "../workspace";
 
 const AGENT_DIR = path.join(WORKING_DIR, ".agent");
 const GRAPH_PATH = path.join(AGENT_DIR, "graph.json");
@@ -142,7 +143,7 @@ export const buildImportGraphTool = tool(
       const graph = await buildGraph(relFiles);
       const summary = analyzeGraph(graph);
 
-      await fs.mkdir(AGENT_DIR, { recursive: true });
+      ensureMetadataDir(AGENT_DIR);
       await fs.writeFile(GRAPH_PATH, JSON.stringify({ graph, summary, builtAt: new Date().toISOString() }, null, 2));
 
       return [

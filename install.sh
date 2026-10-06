@@ -17,7 +17,7 @@ fi
 
 # Check if current directory is a git repository
 if [ -d ".git" ]; then
-  echo "You're already in a Toodex repository. Skipping clone."
+  echo "You're already in a Todex repository. Skipping clone."
 else
   # Clone the repository
   REPO_URL="https://github.com/yourusername/todex.git"

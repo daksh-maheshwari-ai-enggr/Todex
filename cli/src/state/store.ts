@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { execFileSync } from "node:child_process";
 import type {
   AgentStatus,
   AgentTurnEvents,
@@ -9,6 +10,7 @@ import type {
   TodoItem,
 } from "../types/types.js";
 import { loadBackend } from "../utils/agent.js";
+import { changedPath } from "../utils/toolDisplay.js";
 
 /* ---------------------------------------------------------------------------
  * State shape
@@ -18,8 +20,18 @@ export interface TuiState {
   todos: TodoItem[];
   status: AgentStatus;
   activeTool: string | null;
+  /** One-line summary of the active tool's arguments. */
+  activeToolArg: string;
   historyCount: number;
   modelInfo: string;
+  /** Directory the agent is operating on. */
+  workspace: string;
+  /** Current git branch, or null outside a repo. */
+  gitBranch: string | null;
+  /** Count of changed files reported by `git status`. */
+  gitChanges: number;
+  /** Files written/edited by tools this session. */
+  filesChanged: string[];
   /** Append-only transcript of finished events. */
   log: LogEntry[];
   /** Assistant text currently streaming (not yet in the log). */
@@ -31,12 +43,44 @@ const INITIAL_STATE: TuiState = {
   todos: [],
   status: "idle",
   activeTool: null,
+  activeToolArg: "",
   historyCount: 0,
   modelInfo: "loading…",
+  workspace: process.cwd(),
+  gitBranch: null,
+  gitChanges: 0,
+  filesChanged: [],
   log: [],
   streaming: "",
   busy: false,
 };
+
+interface GitContext {
+  branch: string | null;
+  changes: number;
+}
+
+/** Read the branch + changed-file count for `dir` (silent outside a repo). */
+function detectGit(dir: string): GitContext {
+  try {
+    const branch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
+      cwd: dir,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    const porcelain = execFileSync("git", ["status", "--porcelain"], {
+      cwd: dir,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    return {
+      branch: branch || null,
+      changes: porcelain.split("\n").filter((line) => line.trim()).length,
+    };
+  } catch {
+    return { branch: null, changes: 0 };
+  }
+}
 
 const TUI_HELP = `Commands:
   /help            Show this help
@@ -105,6 +149,7 @@ class TuiStore {
   private toolEntryIds = new Map<string, number>();
   private pendingTools = 0;
   private nextId = 1;
+  private changedFiles = new Set<string>();
 
   // Assistant tokens arrive in tiny chunks; coalesce them so each flush is
   // one render instead of one render per token.
@@ -138,7 +183,17 @@ class TuiStore {
   /** Wire the launcher-provided backend (or none, to load it lazily). */
   configure(backend: TuiBackend | null): void {
     this.backend = backend;
-    if (backend) this.patch({ modelInfo: safeModelInfo(backend) });
+    this.patch({
+      workspace: process.cwd(),
+      modelInfo: backend ? safeModelInfo(backend) : this.state.modelInfo,
+    });
+    this.refreshContext();
+  }
+
+  /** Re-read the workspace git branch/status (startup and after each turn). */
+  private refreshContext(): void {
+    const git = detectGit(this.state.workspace);
+    this.patch({ gitBranch: git.branch, gitChanges: git.changes });
   }
 
   setExit(fn: (() => void) | null): void {
@@ -149,6 +204,7 @@ class TuiStore {
   reset(): void {
     this.state = {
       ...INITIAL_STATE,
+      workspace: process.cwd(),
       modelInfo: this.backend ? this.state.modelInfo : "loading…",
     };
     this.agent = null;
@@ -157,11 +213,14 @@ class TuiStore {
     this.pendingTools = 0;
     this.streamBuf = "";
     this.flushScheduled = false;
+    this.changedFiles.clear();
     this.emit();
+    this.refreshContext();
   }
 
   /** Load the backend lazily when the TUI was started standalone. */
   async bootstrap(): Promise<void> {
+    this.refreshContext();
     if (this.backend) {
       this.addLog("system", "Agent backend ready.");
       return;
@@ -208,6 +267,7 @@ class TuiStore {
       this.patch({
         log: [...this.state.log, entry],
         activeTool: call.name,
+        activeToolArg: summarizeArgs(call.input),
         status: "running",
       });
     },
@@ -257,9 +317,16 @@ class TuiStore {
         log = [...log, entry];
       }
 
+      if (!failed) {
+        const changed = changedPath(call.name, call.input);
+        if (changed) this.changedFiles.add(changed);
+      }
+
       this.patch({
         log,
+        filesChanged: [...this.changedFiles],
         activeTool: this.pendingTools > 0 ? this.state.activeTool : null,
+        activeToolArg: this.pendingTools > 0 ? this.state.activeToolArg : "",
         status: this.state.busy
           ? this.pendingTools > 0
             ? "running"
@@ -293,16 +360,17 @@ class TuiStore {
     const input = raw.trim();
     if (!input) return;
 
+    // Commands always work — even mid-turn (e.g. /exit, /help).
+    if (input.startsWith("/")) {
+      this.handleCommand(input);
+      return;
+    }
+
     if (this.state.busy) {
       this.addLog(
         "system",
         "Agent is busy — wait for the current turn to finish."
       );
-      return;
-    }
-
-    if (input.startsWith("/")) {
-      this.handleCommand(input);
       return;
     }
 
@@ -337,6 +405,7 @@ class TuiStore {
         status: "idle",
       });
       if (streamed) this.addLog("assistant", streamed);
+      this.refreshContext();
     } catch (err: any) {
       this.flushStream();
       const streamed = this.state.streaming.trim();

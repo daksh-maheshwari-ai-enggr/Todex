@@ -92,15 +92,22 @@ export function CommandBar() {
     { isActive: isRawModeSupported === true }
   );
 
-  const placeholder = busy ? "agent is working…" : "type a request or /help";
+  const placeholder = busy ? "agent is working…" : "Ask anything, or type /help";
 
   return (
-    <Box>
-      <Text color={busy ? "gray" : "cyan"} bold>
-        ❯{" "}
-      </Text>
-      {value ? <Text>{value}</Text> : <Text dimColor>{placeholder}</Text>}
-      <Text color={busy ? "gray" : "cyan"}>▏</Text>
+    <Box justifyContent="space-between">
+      <Box>
+        <Text color={busy ? "gray" : "cyan"} bold>
+          ❯{" "}
+        </Text>
+        {value ? (
+          <Text color="white">{value}</Text>
+        ) : (
+          <Text dimColor>{placeholder}</Text>
+        )}
+        <Text color={busy ? "gray" : "cyan"}>▏</Text>
+      </Box>
+      <Text dimColor>{value ? "enter ↵" : ""}</Text>
     </Box>
   );
 }

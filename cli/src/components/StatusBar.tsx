@@ -2,18 +2,20 @@ import React from "react";
 import { useEffect, useState } from "react";
 import { Box, Text } from "ink";
 import { useTuiState } from "../state/store.js";
+import { toolVisual } from "../utils/toolDisplay.js";
 
 const FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 /**
- * Bottom status line: live agent status, the model fallback chain and the
- * size of the conversation context.
+ * Bottom status line: a compact live state on the left (spinner while the
+ * agent works) and session context on the right.
  */
 export function StatusBar() {
   const status = useTuiState((s) => s.status);
   const activeTool = useTuiState((s) => s.activeTool);
-  const modelInfo = useTuiState((s) => s.modelInfo);
+  const activeToolArg = useTuiState((s) => s.activeToolArg);
   const historyCount = useTuiState((s) => s.historyCount);
+  const filesChanged = useTuiState((s) => s.filesChanged);
 
   const busy = status === "thinking" || status === "running";
   const [frame, setFrame] = useState(0);
@@ -27,46 +29,40 @@ export function StatusBar() {
     return () => clearInterval(timer);
   }, [busy]);
 
-  let statusText: string;
-  let statusColor: string;
-  if (status === "running" && activeTool) {
-    statusText = `running ${activeTool}`;
-    statusColor = "yellow";
-  } else if (status === "thinking") {
-    statusText = "thinking…";
-    statusColor = "cyan";
-  } else if (status === "error") {
-    statusText = "error";
-    statusColor = "red";
-  } else {
-    statusText = "idle";
-    statusColor = "green";
-  }
+  const spinner = busy ? `${FRAMES[frame]} ` : "";
 
-  // The model chain can be a multi-line listing — keep the status bar to
-  // a single summary line that always fits an 80-column terminal together
-  // with the left-hand status segment.
-  const firstLine = (modelInfo.split("\n")[0] ?? modelInfo).replace(/\s+/g, " ").trim();
-  const model = firstLine.length > 36 ? firstLine.slice(0, 35) + "…" : firstLine;
+  let statusText: React.ReactNode;
+  if (status === "running" && activeTool) {
+    const { icon, color } = toolVisual(activeTool);
+    statusText = (
+      <>
+        <Text color="yellow">{spinner}</Text>
+        <Text color={color}>{icon} </Text>
+        <Text>{activeTool}</Text>
+        {activeToolArg ? <Text dimColor> {activeToolArg}</Text> : null}
+      </>
+    );
+  } else if (status === "thinking") {
+    statusText = <Text color="cyan">{spinner}thinking…</Text>;
+  } else if (status === "error") {
+    statusText = <Text color="red">✗ error</Text>;
+  } else {
+    statusText = <Text color="green">● ready</Text>;
+  }
 
   return (
     <Box justifyContent="space-between">
+      <Box>{statusText}</Box>
       <Box>
-        {busy ? (
-          <Text color={statusColor}>
-            {FRAMES[frame]} {statusText}
+        {filesChanged.length > 0 ? (
+          <Text dimColor>
+            {filesChanged.length} file{filesChanged.length === 1 ? "" : "s"}{" "}
+            changed ·{" "}
           </Text>
-        ) : (
-          <Text color={statusColor}>● {statusText}</Text>
-        )}
+        ) : null}
         <Text dimColor>
-          {" "}
-          · {historyCount} msg{historyCount === 1 ? "" : "s"}
+          {historyCount} msg{historyCount === 1 ? "" : "s"} · ctrl+c
         </Text>
-      </Box>
-      <Box>
-        <Text dimColor>{model}</Text>
-        <Text dimColor> · ctrl+c exit</Text>
       </Box>
     </Box>
   );

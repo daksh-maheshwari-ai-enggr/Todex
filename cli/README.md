@@ -6,12 +6,19 @@ the agent's live TODO list, streams assistant output, renders tool execution
 status, and takes input — all in one layout.
 
 ```
-┌ todex · AI coding agent · TUI ────────────────────────┐
-│ transcript (streaming, tool status)       ┌ todos ──┐ │
-│ ❯ user input…                             │ ✓ task  │ │
-├───────────────────────────────────────────┴─────────┤
-│ ⠹ running bash · 3 msgs   model chain   ctrl+c exit │
-└──────────────────────────────────────────────────────┘
+◈ todex · AI coding agent                 FreeLLMAPI · auto
+~/code/project · ⑂ main · ±2
+──────────────────────────────────────────────────────────
+                                          ╭────────────────╮
+  · Agent backend ready.                  │ plan       2/5 │
+  ❯ add a healthcheck endpoint            │ ▰▰▰▰▱▱▱▱       │
+  ✎ edit_file src/server.ts · 0.3s        │ ◉ wire route   │
+  $ bash npm test · 1.2s                  │ ○ add tests    │
+                                          │ changed     1  │
+  Added the endpoint and wired it up.     │ ✎ src/server.ts│
+──────────────────────────────────────────╰────────────────╯
+❯ Ask anything, or type /help▏
+● ready · ⠹ thinking…        1 file changed · 4 msgs · ctrl+c
 ```
 
 ## Launch paths
@@ -28,7 +35,9 @@ status, and takes input — all in one layout.
 - `cli/src/index.tsx` — entry point; exports `startTui()` for the root launcher
 - `cli/src/App.tsx` — full-screen layout
 - `cli/src/components/` — `AgentOutput`, `TodoList`, `CommandBar`, `StatusBar`
-- `cli/src/state/store.ts` — external store + agent-turn event sink
+- `cli/src/state/store.ts` — external store + agent-turn event sink; also
+  tracks workspace, git branch/status, changed files and the active tool
+- `cli/src/utils/toolDisplay.ts` — tool icons/colors and changed-file extraction
 - `cli/src/utils/agent.ts` — backend loader (injection + dynamic fallback)
 - `cli/src/types/types.ts` — shared TUI types
 
@@ -62,6 +71,10 @@ cd cli && npm run build
   ESM (`"type": "module"`) and the root launcher loads it with a native
   dynamic `import()`.
 - Slash commands (`/help`, `/tools`, `/model`, `/history`, `/clear`, `/exit`)
-  work exactly like the original readline REPL.
+  work exactly like the original readline REPL, and keep working while the
+  agent is mid-turn.
+- The header reports the model chain, workspace path, git branch and dirty-file
+  count. Tool lines carry per-tool icons; write/edit calls are collected into
+  the panel's `changed` list.
 - The original readline CLI remains the default (`todex`); this TUI is the
   alternate interface (`todex --tui`).

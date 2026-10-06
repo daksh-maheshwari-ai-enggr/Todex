@@ -4,6 +4,7 @@ import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { v4 as uuid, validate as isUUID } from "uuid";
 import { WORKING_DIR } from "./fileSystem";
+import { ensureMetadataDir } from "../workspace";
 
 const BASE_DIR = path.join(WORKING_DIR, ".agent-todos");
 
@@ -18,7 +19,7 @@ const InputTaskSchema = z.object({
 export const write_todos = tool(
   async ({ filename, todos }, toolConfig: any) => {
     try {
-      await fs.promises.mkdir(BASE_DIR, { recursive: true });
+      ensureMetadataDir(BASE_DIR);
       const realFileName = `${filename}.todos.json`;
       const filePath = path.join(BASE_DIR, realFileName);
       const now = new Date().toISOString();

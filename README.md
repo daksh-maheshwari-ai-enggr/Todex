@@ -42,7 +42,23 @@ curl -fsSL https://raw.githubusercontent.com/yourusername/todex/main/install.sh 
    npm link
    ```
 
+Once linked, `todex` is on your `PATH` and can be run from any directory.
+
 ## Usage
+
+Run `todex` from inside the project you want to work on:
+
+```bash
+cd ~/code/my-project
+todex            # interactive REPL, edits ./my-project
+todex --tui      # full-screen TUI, edits ./my-project
+todex "write a function to calculate the Fibonacci sequence"   # one-shot
+```
+
+The agent reads and writes files in the **current directory** by default. Override
+the target with `--dir <path>` (or the `AGENT_WORKING_DIR` env var). On the first
+run against a real project, todex asks for confirmation once per project; pass
+`--yes` to skip the prompt in scripts.
 
 ### One-Shot Mode
 Run a single command:
@@ -56,6 +72,11 @@ Start the interactive REPL:
 todex
 ```
 
+### Full-screen TUI
+```bash
+todex --tui
+```
+
 ### Available Commands
 
 | Command | Description |
@@ -66,6 +87,16 @@ todex
 | `/history` | Show how many messages are in context
 | `/clear` | Forget the conversation so far
 | `/exit`, `/quit` | Leave the CLI
+
+### CLI flags
+
+| Flag | Description |
+|------|-------------|
+| `--tui` | Start the full-screen (Ink) interface |
+| `--dir <path>` | Work against a different directory |
+| `--yes`, `-y` | Skip the first-run project confirmation |
+| `--version`, `-v` | Print the version |
+| `--help`, `-h` | Show usage |
 
 ## Configuration
 
@@ -83,7 +114,14 @@ PINECONE_API_KEY=your-pinecone-key
 
 ### Working Directory
 
-The default working directory is `public/working-dir`. You can override it by setting the `AGENT_WORKING_DIR` environment variable.
+By default the agent operates on the directory `todex` is launched from, so
+`cd myproject && todex` edits `myproject` directly. Override it with
+`--dir <path>` or the `AGENT_WORKING_DIR` environment variable (absolute, or
+relative to the current directory).
+
+Agent metadata (`.agent/`, `.agent-todos/`) is written inside the target
+directory. Each such folder contains a `.gitignore` with `*` so your project's
+`git status` stays clean.
 
 ## Development
 

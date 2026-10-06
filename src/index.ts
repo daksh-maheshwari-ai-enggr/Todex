@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-import "./env";
+// Imported first so `--dir` is applied before workspace.ts (imported below via
+// ./cli and ./agent) computes its module-level WORKING_DIR constant.
+import "./bootstrap";
 import { HumanMessage } from "@langchain/core/messages";
 import { createCodingAgent } from "./agent";
 import { runCli, runAgentTurn, startTui } from "./cli";
+import { confirmWorkspace } from "./trust";
 
 const VERSION = process.env.VERSION || "1.0.0";
 
@@ -21,16 +24,24 @@ Usage:
 Options:
   --tui                      Start the alternate full-screen TUI
   --dir <path>               Override AGENT_WORKING_DIR
+  --yes, -y                  Skip the first-run project confirmation
   --version                  Print the version
   --help                     Show this help
+
+By default, todex reads and writes files in the directory it is launched from.
 
 REPL commands:
   /help /tools /model /history /clear /exit
 `;
 
-function parseFlags(argv: string[]): { prompt: string[]; help?: boolean } {
+function parseFlags(argv: string[]): {
+  prompt: string[];
+  help?: boolean;
+  yes?: boolean;
+} {
   const prompt: string[] = [];
   let help = false;
+  let yes = false;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -38,6 +49,10 @@ function parseFlags(argv: string[]): { prompt: string[]; help?: boolean } {
       case "--help":
       case "-h":
         help = true;
+        break;
+      case "--yes":
+      case "-y":
+        yes = true;
         break;
       case "--version":
       case "-v":
@@ -62,10 +77,10 @@ function parseFlags(argv: string[]): { prompt: string[]; help?: boolean } {
     }
   }
 
-  return { prompt, help };
+  return { prompt, help, yes };
 }
 
-const { prompt: promptArgs, help } = parseFlags(process.argv.slice(2));
+const { prompt: promptArgs, help, yes } = parseFlags(process.argv.slice(2));
 
 if (help) {
   console.log(HELP_TEXT);
@@ -73,6 +88,12 @@ if (help) {
 }
 
 async function main() {
+  // One-time, per-project confirmation before touching a real project.
+  if (!(await confirmWorkspace({ yes }))) {
+    console.log("Aborted — no files were changed.");
+    process.exit(1);
+  }
+
   // `todex --tui` → alternate full-screen interface.
   if (promptArgs[0] === "--tui") {
     await startTui();
