@@ -1,76 +1,74 @@
 #!/bin/bash
 set -e
 
-# Check if npm is installed
-if ! command -v npm &> /dev/null; then
-  echo "Error: npm is not installed. Please install Node.js and npm first."
-  echo "Download Node.js from https://nodejs.org/"
+REPO_URL="https://github.com/daksh-maheshwari-ai-enggr/Todex.git"
+INSTALL_DIR="$HOME/.todex"
+
+echo "🚀 Installing Todex..."
+
+# Check Node.js and npm
+if ! command -v node &> /dev/null || ! command -v npm &> /dev/null; then
+  echo "❌ Error: Node.js and npm are required."
+  echo "Install Node.js from https://nodejs.org/"
   exit 1
 fi
 
-# Check if git is installed
+# Check Git
 if ! command -v git &> /dev/null; then
-  echo "Error: git is not installed. Please install git first."
-  echo "Download git from https://git-scm.com/downloads"
+  echo "❌ Error: Git is required."
+  echo "Install Git from https://git-scm.com/downloads"
   exit 1
 fi
 
-# Check if current directory is a git repository
-if [ -d ".git" ]; then
-  echo "You're already in a Todex repository. Skipping clone."
+echo "✓ Node.js: $(node --version)"
+echo "✓ npm: $(npm --version)"
+
+# Clone or update Todex
+if [ -d "$INSTALL_DIR/.git" ]; then
+  echo "📦 Updating Todex..."
+  git -C "$INSTALL_DIR" pull --ff-only
 else
-  # Clone the repository
-  REPO_URL="https://github.com/yourusername/todex.git"
-  REPO_DIR="todex"
+  echo "📥 Downloading Todex..."
 
-  # Create directory if it doesn't exist
-  if [ ! -d "$REPO_DIR" ]; then
-    echo "Cloning repository..."
-    git clone "$REPO_URL" "$REPO_DIR" || {
-      echo "Error: Failed to clone repository."
-      exit 1
-    }
-  fi
+  # Remove incomplete previous installation
+  rm -rf "$INSTALL_DIR"
+
+  git clone "$REPO_URL" "$INSTALL_DIR"
 fi
 
-# Change to the repository directory (skip when already inside the checkout)
-if [ ! -d ".git" ]; then
-  cd "$REPO_DIR" || {
-    echo "Error: Failed to enter repository directory."
-    exit 1
-  }
+cd "$INSTALL_DIR"
+
+# Install root dependencies
+echo "📦 Installing dependencies..."
+npm install
+
+# Install CLI/TUI dependencies
+if [ -d "cli" ]; then
+  echo "📦 Installing TUI dependencies..."
+  cd cli
+  npm install
+  cd ..
 fi
 
-# Install dependencies
-echo "Installing dependencies..."
-npm install || {
-  echo "Error: Failed to install dependencies."
-  exit 1
-}
+# Build Todex
+echo "🔨 Building Todex..."
+npm run build
 
-# Install TUI dependencies (the root build compiles the cli package too)
-echo "Installing TUI dependencies..."
-(cd cli && npm install) || {
-  echo "Error: Failed to install cli dependencies."
-  exit 1
-}
+# Make Todex globally available
+echo "🔗 Linking Todex..."
+npm link
 
-# Build the project
-echo "Building project..."
-npm run build || {
-  echo "Error: Failed to build project."
-  exit 1
-}
-
-# Link the package globally
-echo "Linking package globally..."
-npm link || {
-  echo "Error: Failed to link package globally."
-  echo "You can manually link it with: npm link"
-}
-
-# Display success message
-echo "Toodex installed successfully!"
-echo "You can now run: todex"
-echo "To run in development mode: cd $REPO_DIR && npm run dev"
-echo "To install via cURL: curl -fsSL https://raw.githubusercontent.com/yourusername/todex/main/install.sh | bash"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "✓ Todex installed successfully!"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "Run Todex from any project:"
+echo ""
+echo "  cd /path/to/your/project"
+echo "  todex"
+echo ""
+echo "Todex will use the current directory as the workspace."
+echo ""
+echo "Installation: $INSTALL_DIR"
+echo ""

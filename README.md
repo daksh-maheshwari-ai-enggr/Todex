@@ -16,7 +16,7 @@ A powerful AI coding assistant that helps you write, debug, and optimize code.
 ### Using cURL (Recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yourusername/todex/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/daksh-maheshwari-ai-enggr/Todex/master/install.sh | bash
 ```
 
 ### Manual Installation
