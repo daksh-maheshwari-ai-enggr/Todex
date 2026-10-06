@@ -10,8 +10,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc && cd cli && npm run build",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit",
-    "install": "bash install.sh"
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
