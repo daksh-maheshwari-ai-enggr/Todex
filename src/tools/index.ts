@@ -18,6 +18,7 @@ import {
   get_next_runnable_tasks,
 } from "./todo";
 import { createTaskTool } from "./task/task";
+import { filterTasksTool } from "./todoFilter";
 
 /**
  * The tool registry.
@@ -75,9 +76,7 @@ export const TOOL_GROUP_NAMES = Object.keys(toolGroups) as ToolGroupName[];
 export type ToolGroupName = keyof typeof toolGroups;
 
 /** A flat list of every non-task tool in the registry. */
-export const tools: StructuredToolInterface[] = TOOL_GROUP_NAMES.flatMap(
-  (group) => toolGroups[group]
-);
+export const tools: StructuredToolInterface[] = TOOL_GROUP_NAMES.flatMap((group) => toolGroups[group]).concat(filterTasksTool);
 
 // ---- Factory ----------------------------------------------------------------
 

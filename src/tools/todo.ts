@@ -12,6 +12,7 @@ const InputTaskSchema = z.object({
   task: z.string(),
   assigned_to: z.string(),
   status: z.enum(["pending", "in_progress", "completed", "blocked"]).default("pending"),
+  priority: z.enum(["low", "medium", "high", "critical"]).default("medium"),
   parent_id: z.string().optional(),
   dependencies: z.array(z.string()).optional(),
 });
@@ -236,6 +237,17 @@ export const get_next_runnable_tasks = tool(
 
           return completedIds.has(dependencyId);
         });
+      });
+
+      // Sort runnable tasks by priority (highest priority first)
+      runnable.sort((a: any, b: any) => {
+        const priorityOrder: Record<string, number> = {
+          low: 1,
+          medium: 2,
+          high: 3,
+          critical: 4,
+        };
+        return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
       });
 
       return `<think>${JSON.stringify(runnable, null, 2)}</think>`;
