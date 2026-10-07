@@ -2,65 +2,97 @@ import type { TuiBackend } from "../types/types.js";
 
 let injected: TuiBackend | null = null;
 
-/** Called by the entry point when the root package launches the TUI. */
+/**
+ * Called by the root launcher when it wants to provide
+ * the backend directly.
+ */
 export function setInjectedBackend(backend: TuiBackend | null): void {
   injected = backend;
 }
 
 /**
- * Resolve the agent backend.
+ * Load the Todex backend.
  *
- * When launched via `todex --tui`, the root package injects the backend
- * directly. When the TUI is started standalone (`cd cli && npm run dev`),
- * we fall back to dynamically importing the root sources — that only works
- * under tsx (or with the root package built to dist/), hence the candidate
- * list. Specifiers are variables on purpose: the root sources live outside
- * this package's tsconfig rootDir and must stay out of its compilation.
+ * The Ink CLI can run in two ways:
+ *
+ * 1. Through the main `todex` command.
+ * 2. Standalone from inside the `cli` package.
+ *
+ * In both cases the actual agent implementation lives
+ * in the root `src/` directory.
  */
 export async function loadBackend(): Promise<TuiBackend> {
-  if (injected) return injected;
+  if (injected) {
+    return injected;
+  }
 
-  const cliCandidates = ["../../../src/cli.js", "../../../dist/cli.js"];
+  /**
+   * runtime.ts contains:
+   * - runAgentTurn
+   * - trimHistory
+   * - renderToolManifest
+   * - describeModelChain
+   *
+   * agent.ts contains:
+   * - createCodingAgent
+   *
+   * model.ts contains:
+   * - model configuration
+   */
+  const runtimeCandidates = [
+    "../../../src/runtime.js",
+    "../../../dist/runtime.js",
+  ];
 
-  for (const cliSpec of cliCandidates) {
+  for (const runtimeSpec of runtimeCandidates) {
     try {
-      const cli: any = await import(cliSpec);
-      if (typeof cli?.runAgentTurn !== "function") continue;
+      const runtime: any = await import(runtimeSpec);
 
-      // agent/tools/model live next to the cli module we just loaded —
-      // root src/ under tsx, root dist/ under a plain node build.
-      const base = cliSpec.replace(/cli\.js$/, "");
+      if (typeof runtime?.runAgentTurn !== "function") {
+        continue;
+      }
+
+      const base = runtimeSpec.replace(/runtime\.js$/, "");
+
       const agentSpec = `${base}agent.js`;
-      const agentMod: any = await import(agentSpec);
-      // `tools` is a directory module: compiled as tools/index.js, while
-      // under tsx the .js specifier maps to src/tools/index.ts directly.
-      const toolsSpec = `${base}tools.js`;
-      const toolsIndexSpec = `${base}tools/index.js`;
-      const toolsMod: any = await import(toolsSpec).catch(() =>
-        import(toolsIndexSpec)
-      );
       const modelSpec = `${base}model.js`;
+
+      const agentMod: any = await import(agentSpec);
       const modelMod: any = await import(modelSpec);
-      const messagesMod: any = await import("@langchain/core/messages");
+
+      const messagesMod: any = await import(
+        "@langchain/core/messages"
+      );
 
       return {
         createCodingAgent: agentMod.createCodingAgent,
-        runAgentTurn: cli.runAgentTurn,
+
+        runAgentTurn: runtime.runAgentTurn,
+
         trimHistory:
-          typeof cli.trimHistory === "function"
-            ? cli.trimHistory
-            : (messages: unknown[]) => messages,
-        renderToolManifest: () => toolsMod.renderToolManifest(),
-        describeModelChain: () => modelMod.describeModelChain(),
+          typeof runtime.trimHistory === "function"
+            ? runtime.trimHistory
+            : (messages: any[]) => messages,
+
+        renderToolManifest:
+          typeof runtime.renderToolManifest === "function"
+            ? runtime.renderToolManifest
+            : () => "No tools registered.",
+
+        describeModelChain:
+          typeof runtime.describeModelChain === "function"
+            ? runtime.describeModelChain
+            : () => "Configured model",
+
         HumanMessage: messagesMod.HumanMessage,
       };
     } catch {
-      // Try the next candidate path.
+      // Try the next backend candidate.
     }
   }
 
   throw new Error(
-    "Could not load the Toodex agent backend. " +
-      "Launch the TUI with `todex --tui` (or `npm run dev -- --tui`) from the project root."
+    "Could not load the Todex agent backend. " +
+      "Make sure the root project is built before launching the standalone TUI."
   );
 }

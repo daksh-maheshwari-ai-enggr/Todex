@@ -1,120 +1,134 @@
 #!/usr/bin/env node
-// Imported first so `--dir` is applied before workspace.ts (imported below via
-// ./cli and ./agent) computes its module-level WORKING_DIR constant.
+
+// Must load before workspace-aware modules.
 import "./bootstrap";
+
+import { confirmWorkspace } from "./trust";
+
 import { HumanMessage } from "@langchain/core/messages";
 import { createCodingAgent } from "./agent";
-import { runCli, runAgentTurn, startTui } from "./cli";
-import { confirmWorkspace } from "./trust";
+import {
+  runAgentTurn,
+  trimHistory,
+  renderToolManifest,
+  describeModelChain,
+} from "./runtime";
 
 const VERSION = process.env.VERSION || "1.0.0";
 
-/* ---------------------------------------------------------------------------
- * Flag parsing — flags are consumed here so whatever remains is the prompt.
- * ------------------------------------------------------------------------- */
-
-const HELP_TEXT = `Toodex CLI v${VERSION}
+const HELP_TEXT = `Todex CLI v${VERSION}
 
 Usage:
-  todex                      Interactive REPL (original terminal interface)
-  todex "do something"       One-shot request
-  todex --tui                Full-screen TUI (Ink) interface
-  todex --dir <path> ...     Run against a different working directory
+  todex                      Open the Todex TUI
+  todex --dir <path>         Run against a different working directory
+  todex --yes                Skip project confirmation
 
 Options:
-  --tui                      Start the alternate full-screen TUI
   --dir <path>               Override AGENT_WORKING_DIR
   --yes, -y                  Skip the first-run project confirmation
-  --version                  Print the version
-  --help                     Show this help
-
-By default, todex reads and writes files in the directory it is launched from.
-
-REPL commands:
-  /help /tools /model /history /clear /exit
+  --version, -v              Print the version
+  --help, -h                 Show this help
 `;
 
 function parseFlags(argv: string[]): {
-  prompt: string[];
-  help?: boolean;
-  yes?: boolean;
+  yes: boolean;
+  help: boolean;
 } {
-  const prompt: string[] = [];
-  let help = false;
   let yes = false;
+  let help = false;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
+
     switch (arg) {
       case "--help":
       case "-h":
         help = true;
         break;
+
       case "--yes":
       case "-y":
         yes = true;
         break;
+
       case "--version":
       case "-v":
-        console.log(`Toodex CLI v${VERSION}`);
+        console.log(`Todex CLI v${VERSION}`);
         process.exit(0);
         break;
-      case "--tui":
-        // Handled in main() — skip the valueless flag here.
-        prompt.push(arg);
-        break;
+
       case "--dir": {
         const value = argv[++i];
+
         if (!value) {
           console.error("❌ --dir requires a path argument");
           process.exit(1);
         }
+
         process.env.AGENT_WORKING_DIR = value;
         break;
       }
+
       default:
-        prompt.push(arg);
+        // The Ink TUI handles user input.
+        // Positional prompts are intentionally ignored here.
+        break;
     }
   }
 
-  return { prompt, help, yes };
-}
-
-const { prompt: promptArgs, help, yes } = parseFlags(process.argv.slice(2));
-
-if (help) {
-  console.log(HELP_TEXT);
-  process.exit(0);
+  return { yes, help };
 }
 
 async function main() {
-  // One-time, per-project confirmation before touching a real project.
+  const { yes, help } = parseFlags(process.argv.slice(2));
+
+  if (help) {
+    console.log(HELP_TEXT);
+    return;
+  }
+
+  // One-time, per-project confirmation before touching the workspace.
   if (!(await confirmWorkspace({ yes }))) {
     console.log("Aborted — no files were changed.");
     process.exit(1);
   }
 
-  // `todex --tui` → alternate full-screen interface.
-  if (promptArgs[0] === "--tui") {
-    await startTui();
-    return;
+  /*
+   * The Ink CLI is now the main Todex CLI.
+   *
+   * Production:
+   *   node dist/index.js
+   *   → cli/dist/index.js
+   *
+   * Development:
+   *   tsx src/index.ts
+   *   → cli/src/index.tsx
+   */
+
+
+  // @ts-expect-error cli is compiled as a separate package
+  const tui = await import("../cli/dist/index.js");
+  
+
+  if (typeof tui.startTui !== "function") {
+    throw new Error(
+      "Todex TUI entry point was found, but startTui() is missing."
+    );
   }
 
-  const prompt = promptArgs.join(" ").trim();
-
-  // One-shot: `todex "fix the failing test"` / `npm run dev -- "..."`
-  if (prompt) {
-    const agent = createCodingAgent();
-    await runAgentTurn(agent, [new HumanMessage(prompt)]);
-    process.stdout.write("\n");
-    return;
-  }
-
-  // No prompt → interactive REPL.
-  await runCli();
+  await tui.startTui({
+  createCodingAgent,
+  runAgentTurn,
+  trimHistory,
+  renderToolManifest,
+  describeModelChain,
+  HumanMessage,
+});
 }
+
 
 main().catch((err) => {
   console.error("\n❌ Fatal:", err?.message ?? err);
   process.exit(1);
 });
+
