@@ -88,6 +88,19 @@ todex --tui
 | `/clear` | Forget the conversation so far
 | `/exit`, `/quit` | Leave the CLI
 
+### TUI keys
+
+| Key | Action |
+|-----|--------|
+| `PgUp` / `PgDn` | Scroll the transcript (works while the agent streams) |
+| `Shift+↑` / `Shift+↓` | Scroll one line |
+| `Esc` | Jump back to the latest output |
+| `↑` / `↓` | Walk prompt history |
+| `Enter` | Send the prompt |
+
+Pasting multi-line text fills the input without sending it — review, then press
+`Enter` to run it.
+
 ### CLI flags
 
 | Flag | Description |

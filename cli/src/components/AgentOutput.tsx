@@ -1,7 +1,7 @@
 import React from "react";
 import { useEffect, useState } from "react";
 import { Box, Text } from "ink";
-import { useTuiState } from "../state/store.js";
+import { store, useTuiState } from "../state/store.js";
 import type { LogEntry } from "../types/types.js";
 import { toolVisual } from "../utils/toolDisplay.js";
 
@@ -112,9 +112,25 @@ function Streaming({ text }: { text: string }) {
   );
 }
 
+/** Shown when the transcript is scrolled away from the live tail. */
+function ScrollHint({ offset }: { offset: number }) {
+  return (
+    <Text wrap="truncate-end">
+      <Text color="yellow">↓ </Text>
+      <Text dimColor>
+        scrolled up {offset} · PgUp/PgDn or Shift+↑/↓ · esc to return
+      </Text>
+    </Text>
+  );
+}
+
 /**
- * Transcript view: finished log entries (windowed to the available height)
- * followed by the assistant text currently streaming in.
+ * Transcript view: finished log entries followed by the assistant text
+ * currently streaming in.
+ *
+ * The log is windowed to the available height. `scrollOffset` (owned by the
+ * store and driven by the CommandBar's keys) shifts that window up so earlier
+ * output can be reviewed — including while the agent is still streaming.
  */
 export function AgentOutput({
   height,
@@ -125,16 +141,31 @@ export function AgentOutput({
 }) {
   const log = useTuiState((s) => s.log);
   const streaming = useTuiState((s) => s.streaming);
+  const scrollOffset = useTuiState((s) => s.scrollOffset);
 
-  const visible = log.length > height ? log.slice(log.length - height) : log;
-  // Streaming text occupies lines too; keep the tail on screen.
+  // Publish the window height so the store can page scroll and clamp offset.
+  useEffect(() => {
+    store.setViewportRows(height);
+  }, [height]);
+
+  const scrolled = scrollOffset > 0;
+
+  // Window into the log: `end` trims entries hidden below, `start` above.
+  const end = Math.max(0, log.length - scrollOffset);
+  const start = Math.max(0, end - height);
+  const visible = log.slice(start, end);
+
+  // Streaming text occupies lines too; keep its tail on screen. When scrolled
+  // up, the streaming line is hidden and a scroll hint takes its place.
   const perLine = Math.max(30, (width ?? 80) - INDENT.length);
-  const streamLines = streaming
-    ? Math.min(height - 1, Math.ceil(streaming.length / perLine) + 1)
-    : 0;
+  const streamLines =
+    streaming && !scrolled
+      ? Math.min(height - 1, Math.ceil(streaming.length / perLine) + 1)
+      : 0;
+  const reserved = streamLines + (scrolled ? 1 : 0);
   const trimmed =
-    streamLines > 0 && visible.length + streamLines > height
-      ? visible.slice(0, height - streamLines)
+    reserved > 0 && visible.length + reserved > height
+      ? visible.slice(0, Math.max(0, height - reserved))
       : visible;
 
   return (
@@ -142,7 +173,8 @@ export function AgentOutput({
       {trimmed.map((entry) => (
         <LogRow key={entry.id} entry={entry} />
       ))}
-      {streaming ? <Streaming text={streaming} /> : null}
+      {streaming && !scrolled ? <Streaming text={streaming} /> : null}
+      {scrolled ? <ScrollHint offset={scrollOffset} /> : null}
     </Box>
   );
 }

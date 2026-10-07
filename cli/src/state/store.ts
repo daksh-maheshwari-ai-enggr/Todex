@@ -39,6 +39,10 @@ export interface TuiState {
   busy: boolean;
   /** First-run gate: true when no provider API key has been configured yet. */
   setupRequired: boolean;
+  /** Entries scrolled up from the live tail; 0 means "follow the output". */
+  scrollOffset: number;
+  /** Transcript window height in rows (published by AgentOutput). */
+  viewportRows: number;
 }
 
 const INITIAL_STATE: TuiState = {
@@ -56,6 +60,8 @@ const INITIAL_STATE: TuiState = {
   streaming: "",
   busy: false,
   setupRequired: false,
+  scrollOffset: 0,
+  viewportRows: 20,
 };
 
 interface GitContext {
@@ -93,7 +99,15 @@ const TUI_HELP = `Commands:
   /clear           Forget the conversation so far
   /exit, /quit     Leave the TUI
 
-Anything else is sent to the agent as a request.`;
+Keys:
+  PgUp / PgDn       Scroll the transcript
+  Shift+↑ / Shift+↓ Scroll one line
+  Esc               Jump back to the latest output
+  ↑ / ↓             Walk prompt history
+  Enter             Send the prompt
+
+Pasting multi-line text fills the input without sending — review it, then
+press Enter to run it.`;
 
 /** One-line summary of a tool call's arguments, for the log row. */
 function summarizeArgs(input: unknown): string {
@@ -182,6 +196,26 @@ class TuiStore {
     for (const listener of this.listeners) listener();
   }
 
+  /** Largest value `scrollOffset` can take for a given log length. */
+  private maxScroll(logLength = this.state.log.length): number {
+    return Math.max(0, logLength - this.state.viewportRows);
+  }
+
+  /**
+   * Offset to store alongside a new log array.
+   *
+   * While the user is scrolled up, appended entries would otherwise shove the
+   * viewport downward. Bumping the offset by the same amount keeps the visible
+   * window anchored to the same entries while the live tail grows below it.
+   */
+  private offsetFor(next: LogEntry[]): number {
+    const delta = next.length - this.state.log.length;
+    if (delta <= 0 || this.state.scrollOffset <= 0) {
+      return this.state.scrollOffset;
+    }
+    return Math.min(this.state.scrollOffset + delta, this.maxScroll(next.length));
+  }
+
   private addLog(kind: LogKind, text: string, tool?: LogEntry["tool"]): void {
     const entry: LogEntry = {
       id: this.nextId++,
@@ -189,7 +223,8 @@ class TuiStore {
       text,
       ...(tool ? { tool } : {}),
     };
-    this.patch({ log: [...this.state.log, entry] });
+    const log = [...this.state.log, entry];
+    this.patch({ log, scrollOffset: this.offsetFor(log) });
   }
 
   /** Wire the launcher-provided backend (or none, to load it lazily). */
@@ -218,6 +253,37 @@ class TuiStore {
   /** Leave the TUI (used by the setup screen's cancel handler and /exit). */
   exit(): void {
     this.exitFn?.();
+  }
+
+  /** Transcript window height, published by AgentOutput on layout. */
+  setViewportRows(rows: number): void {
+    if (rows > 0 && rows !== this.state.viewportRows) {
+      this.patch({ viewportRows: rows });
+    }
+  }
+
+  /** Scroll the transcript by a number of entries (positive = older). */
+  scrollBy(entries: number): void {
+    const next = Math.max(
+      0,
+      Math.min(this.state.scrollOffset + entries, this.maxScroll())
+    );
+    if (next !== this.state.scrollOffset) {
+      this.patch({ scrollOffset: next });
+    }
+  }
+
+  /** Scroll by roughly one screen in the given direction. */
+  scrollPage(direction: "up" | "down"): void {
+    const step = Math.max(1, this.state.viewportRows - 1);
+    this.scrollBy(direction === "up" ? step : -step);
+  }
+
+  /** Jump back to the live tail (also used when a new prompt is submitted). */
+  scrollToBottom(): void {
+    if (this.state.scrollOffset !== 0) {
+      this.patch({ scrollOffset: 0 });
+    }
   }
 
   /** Reset conversation/UI state (called on every TUI start). */
@@ -330,8 +396,10 @@ class TuiStore {
         text: call.name,
         tool: { name: call.name, args: summarizeArgs(call.input), done: false },
       };
+      const log = [...this.state.log, entry];
       this.patch({
-        log: [...this.state.log, entry],
+        log,
+        scrollOffset: this.offsetFor(log),
         activeTool: call.name,
         activeToolArg: summarizeArgs(call.input),
         status: "running",
@@ -390,6 +458,7 @@ class TuiStore {
 
       this.patch({
         log,
+        scrollOffset: this.offsetFor(log),
         filesChanged: [...this.changedFiles],
         activeTool: this.pendingTools > 0 ? this.state.activeTool : null,
         activeToolArg: this.pendingTools > 0 ? this.state.activeToolArg : "",
@@ -449,7 +518,8 @@ class TuiStore {
     }
 
     this.addLog("user", input);
-    this.patch({ busy: true, status: "thinking", streaming: "" });
+    // A new prompt means the user wants to watch fresh output.
+    this.patch({ busy: true, status: "thinking", streaming: "", scrollOffset: 0 });
 
     try {
       if (!this.agent) this.agent = this.backend.createCodingAgent();
