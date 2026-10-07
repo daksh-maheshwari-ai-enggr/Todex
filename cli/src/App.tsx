@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Box, Text } from "ink";
 import { AgentOutput } from "./components/AgentOutput.js";
 import { CommandBar } from "./components/CommandBar.js";
+import { SetupScreen } from "./components/SetupScreen.js";
 import { StatusBar } from "./components/StatusBar.js";
 import { TodoList, ChangedFiles } from "./components/TodoList.js";
 import { useTuiState } from "./state/store.js";
@@ -104,7 +105,17 @@ function Rule({ width }: { width: number }) {
  *   ❯ input
  *   status
  */
+/**
+ * Root view. Keeps a stable hook order by gating the setup screen *before*
+ * mounting the main view: `MainView` owns all of the workspace/git hooks, so
+ * switching between the two never changes this component's hook count.
+ */
 export function App() {
+  const setupRequired = useTuiState((s) => s.setupRequired);
+  return setupRequired ? <SetupScreen /> : <MainView />;
+}
+
+function MainView() {
   const todos = useTuiState((s) => s.todos);
   const filesChanged = useTuiState((s) => s.filesChanged);
   const size = useTerminalSize();

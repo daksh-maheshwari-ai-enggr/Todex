@@ -180,53 +180,31 @@ interface ProviderSpec {
 }
 
 /**
- * Provider presets. All speak the OpenAI protocol, so each is just a
- * ChatOpenAI with a different base URL / key / model.
+ * Provider presets, tried in order. Every provider speaks the OpenAI protocol,
+ * so each one is just a ChatOpenAI with a different base URL / key / model.
+ *
+ * FreeLLMAPI is the only active provider for now. To add another provider later,
+ * append a ProviderSpec here and add its key to `PROVIDER_KEY_ENV` in
+ * `src/config.ts` — the fallback chain and factory below pick it up unchanged.
+ * The first-run UX intentionally exposes no provider/model selection yet.
  */
 const PROVIDERS: ProviderSpec[] = [
   {
     name: "freellmapi",
-    label: "FreeLLMAPI (self-hosted router)",
+    label: "FreeLLMAPI",
     apiKeyEnv: "FREELLMAPI_API_KEY",
     modelEnv: "FREELLMAPI_MODEL",
     baseUrlEnv: "FREELLMAPI_BASE_URL",
     defaultBaseURL: "http://localhost:3001/v1",
     defaultModel: "auto", // let the router pick; or "auto:fast"/"auto:smart"
   },
-  {
-    name: "groq",
-    label: "Groq",
-    apiKeyEnv: "GROQ_API_KEY",
-    modelEnv: "GROQ_MODEL",
-    baseUrlEnv: "GROQ_BASE_URL",
-    defaultBaseURL: "https://api.groq.com/openai/v1",
-    defaultModel: "llama-3.3-70b-versatile",
-  },
-  {
-    name: "openrouter",
-    label: "OpenRouter",
-    apiKeyEnv: "OPENROUTER_API_KEY",
-    modelEnv: "MODEL_NAME",
-    baseUrlEnv: "OPENROUTER_BASE_URL",
-    defaultBaseURL: "https://openrouter.ai/api/v1",
-    defaultModel: "openai/gpt-4o-mini",
-    headers: { "HTTP-Referer": "https://github.com/", "X-Title": "todex" },
-  },
 ];
 
 /** Names of every configured provider, in fallback order. */
 export function resolveProviderChain(): ProviderInfo[] {
-  const order =
-    process.env.MODEL_PROVIDER_ORDER?.split(",")
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean) ?? PROVIDERS.map((p) => p.name);
-
   const configured: ProviderInfo[] = [];
 
-  for (const name of order) {
-    const spec = PROVIDERS.find((p) => p.name === name);
-    if (!spec) continue;
-
+  for (const spec of PROVIDERS) {
     const apiKey = process.env[spec.apiKeyEnv];
     if (!apiKey) continue;
 
@@ -273,19 +251,18 @@ export function describeModelChain(): string {
 /**
  * Build the chat model used by the agent.
  *
- * Providers are tried in order; on a rate limit / quota / 5xx the next one
- * takes over automatically. Order defaults to FreeLLMAPI → Groq → OpenRouter
- * and can be overridden with MODEL_PROVIDER_ORDER.
- *
- * Only providers whose API key env var is set are included.
+ * Only FreeLLMAPI is active today. Providers are tried in order and, when more
+ * than one is configured, a rate limit / quota / 5xx on one transparently falls
+ * through to the next. Only providers whose API key env var is set are included;
+ * the key is resolved globally by `src/config.ts` (or overridden via the env).
  */
 export function createModel(): BaseChatModel {
   const chain = resolveProviderChain();
 
   if (!chain.length) {
     throw new Error(
-      "No model provider configured. Set at least one of FREELLMAPI_API_KEY, " +
-        "GROQ_API_KEY, or OPENROUTER_API_KEY. See .env.example."
+      "No model provider configured. Run todex to enter your FreeLLMAPI API " +
+        "key, or set FREELLMAPI_API_KEY in the environment."
     );
   }
 

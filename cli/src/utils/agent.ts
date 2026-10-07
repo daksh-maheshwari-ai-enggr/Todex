@@ -60,6 +60,9 @@ export async function loadBackend(): Promise<TuiBackend> {
       const agentMod: any = await import(agentSpec);
       const modelMod: any = await import(modelSpec);
 
+      const configSpec = `${base}config.js`;
+      const configMod: any = await import(configSpec);
+
       const messagesMod: any = await import(
         "@langchain/core/messages"
       );
@@ -83,6 +86,20 @@ export async function loadBackend(): Promise<TuiBackend> {
           typeof runtime.describeModelChain === "function"
             ? runtime.describeModelChain
             : () => "Configured model",
+
+        hasApiKey:
+          typeof configMod.hasApiKey === "function"
+            ? configMod.hasApiKey
+            : () => false,
+
+        saveApiKey:
+          typeof configMod.saveApiKey === "function"
+            ? configMod.saveApiKey
+            : () => {
+                throw new Error(
+                  "Global config support is unavailable in this backend."
+                );
+              },
 
         HumanMessage: messagesMod.HumanMessage,
       };

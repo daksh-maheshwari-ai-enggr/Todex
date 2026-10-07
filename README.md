@@ -6,7 +6,7 @@ A powerful AI coding assistant that helps you write, debug, and optimize code.
 
 - Interactive REPL with terminal UI
 - Comprehensive tooling for code analysis, modification, and project management
-- Multi-provider LLM fallback chain (FreeLLMAPI, Groq, OpenRouter)
+- FreeLLMAPI-backed model provider (registry extensible to more later)
 - AST-aware RAG for semantic code search
 - Project memory management
 - Workflow TODO planning and scheduling
@@ -100,17 +100,35 @@ todex --tui
 
 ## Configuration
 
-### Environment Variables
+### First-run setup
 
-Create a `.env` file in the project root with your API keys:
+On first launch, if no FreeLLMAPI API key is configured, Todex shows an Ink
+setup screen and asks for your key once. It is saved globally — you never need
+to create a project `.env`:
+
+```
+~/.config/todex/config.json   # written with 0600 permissions
+```
+
+```json
+{ "provider": "freellmapi", "apiKey": "..." }
+```
+
+Entering the key is enough to continue straight into the TUI.
+
+### Environment overrides (optional, for development)
+
+Environment variables still win over the stored config, so you can override
+credentials without editing the global file:
+
 ```env
 FREELLMAPI_API_KEY=your-api-key
 FREELLMAPI_BASE_URL=http://localhost:3001/v1
-GROQ_API_KEY=your-groq-key
-OPENROUTER_API_KEY=your-openrouter-key
-COHERE_API_KEY=your-cohere-key
-PINECONE_API_KEY=your-pinecone-key
+FREELLMAPI_MODEL=auto
 ```
+
+Any `.env` in the working directory or package root is loaded automatically and
+is optional.
 
 ### Working Directory
 

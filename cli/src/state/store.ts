@@ -37,6 +37,8 @@ export interface TuiState {
   /** Assistant text currently streaming (not yet in the log). */
   streaming: string;
   busy: boolean;
+  /** First-run gate: true when no provider API key has been configured yet. */
+  setupRequired: boolean;
 }
 
 const INITIAL_STATE: TuiState = {
@@ -53,6 +55,7 @@ const INITIAL_STATE: TuiState = {
   log: [],
   streaming: "",
   busy: false,
+  setupRequired: false,
 };
 
 interface GitContext {
@@ -130,6 +133,15 @@ function safeModelInfo(backend: TuiBackend): string {
   }
 }
 
+/** Has the backend already got a usable provider key? Never throws. */
+function backendHasApiKey(backend: TuiBackend): boolean {
+  try {
+    return backend.hasApiKey() === true;
+  } catch {
+    return false;
+  }
+}
+
 /* ---------------------------------------------------------------------------
  * Store
  *
@@ -186,6 +198,9 @@ class TuiStore {
     this.patch({
       workspace: process.cwd(),
       modelInfo: backend ? safeModelInfo(backend) : this.state.modelInfo,
+      // With an injected backend we know the key state up front, so the setup
+      // screen renders on the very first frame.
+      setupRequired: backend ? !backendHasApiKey(backend) : false,
     });
     this.refreshContext();
   }
@@ -200,12 +215,18 @@ class TuiStore {
     this.exitFn = fn;
   }
 
+  /** Leave the TUI (used by the setup screen's cancel handler and /exit). */
+  exit(): void {
+    this.exitFn?.();
+  }
+
   /** Reset conversation/UI state (called on every TUI start). */
   reset(): void {
     this.state = {
       ...INITIAL_STATE,
       workspace: process.cwd(),
       modelInfo: this.backend ? this.state.modelInfo : "loading…",
+      setupRequired: this.backend ? !backendHasApiKey(this.backend) : false,
     };
     this.agent = null;
     this.history = [];
@@ -222,17 +243,62 @@ class TuiStore {
   async bootstrap(): Promise<void> {
     this.refreshContext();
     if (this.backend) {
+      this.patch({ setupRequired: !backendHasApiKey(this.backend) });
       this.addLog("system", "Agent backend ready.");
       return;
     }
     try {
       this.backend = await loadBackend();
-      this.patch({ modelInfo: safeModelInfo(this.backend) });
+      this.patch({
+        modelInfo: safeModelInfo(this.backend),
+        setupRequired: !backendHasApiKey(this.backend),
+      });
       this.addLog("system", "Agent backend loaded from the root package.");
     } catch (err: any) {
-      this.patch({ modelInfo: "unavailable" });
+      this.patch({ modelInfo: "unavailable", setupRequired: false });
       this.addLog("error", String(err?.message ?? err));
     }
+  }
+
+  /**
+   * Persist the first-run provider API key and leave the setup gate.
+   *
+   * Saves through the injected backend (which wraps `src/config.ts`), then
+   * re-reads the key state so a failed write keeps the setup screen up.
+   */
+  saveApiKey(apiKey: string): boolean {
+    if (!this.backend) {
+      this.addLog(
+        "error",
+        "Agent backend is not loaded yet — cannot save the API key."
+      );
+      return false;
+    }
+
+    try {
+      this.backend.saveApiKey(apiKey.trim());
+    } catch (err: any) {
+      this.addLog(
+        "error",
+        `Could not save the API key: ${err?.message ?? err}`
+      );
+      return false;
+    }
+
+    if (!backendHasApiKey(this.backend)) {
+      this.addLog(
+        "error",
+        "The API key did not persist — check ~/.config/todex permissions."
+      );
+      return false;
+    }
+
+    this.patch({
+      setupRequired: false,
+      modelInfo: safeModelInfo(this.backend),
+    });
+    this.addLog("system", "FreeLLMAPI API key saved. Agent ready.");
+    return true;
   }
 
   /** Where agent-turn output goes (handed to the backend's runAgentTurn). */

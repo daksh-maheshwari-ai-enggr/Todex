@@ -57,6 +57,10 @@ export interface TuiBackend {
   renderToolManifest(): string;
   describeModelChain(): string;
   HumanMessage: new (content: string) => unknown;
+  /** True when a usable provider API key is stored or present in the env. */
+  hasApiKey(): boolean;
+  /** Persist a provider API key to the global config (0600). */
+  saveApiKey(apiKey: string): void;
 }
 
 export type AgentStatus = "idle" | "thinking" | "running" | "error";

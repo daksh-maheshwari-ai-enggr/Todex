@@ -7,6 +7,7 @@ import { confirmWorkspace } from "./trust";
 
 import { HumanMessage } from "@langchain/core/messages";
 import { createCodingAgent } from "./agent";
+import { hasApiKey, saveApiKey } from "./config";
 import {
   runAgentTurn,
   trimHistory,
@@ -116,14 +117,23 @@ async function main() {
     );
   }
 
+  /*
+   * The boot-time global config (see `./env` / `./config`) has already loaded
+   * any saved API key into the environment. If none exists, the TUI shows its
+   * first-run setup screen before the agent is ever built — `createCodingAgent`
+   * is only called lazily from the store once a turn is submitted, so a missing
+   * provider can no longer surface as a hard startup failure.
+   */
   await tui.startTui({
-  createCodingAgent,
-  runAgentTurn,
-  trimHistory,
-  renderToolManifest,
-  describeModelChain,
-  HumanMessage,
-});
+    createCodingAgent,
+    runAgentTurn,
+    trimHistory,
+    renderToolManifest,
+    describeModelChain,
+    HumanMessage,
+    hasApiKey,
+    saveApiKey,
+  });
 }
 
 
