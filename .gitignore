@@ -3,6 +3,8 @@ dist/
 .env
 .env.local
 *.log
+.env.*
+!.env.example
 
 # Agent scratch space / sandbox
 public/working-dir/
