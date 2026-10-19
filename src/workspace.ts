@@ -25,6 +25,32 @@ export function ensureWorkingDir(): void {
 }
 
 /**
+ * The agent's persistent memory directory.
+ *
+ * Lives inside the working project (`.memory/`) so a user's habits, daily
+ * logs, and module knowledge travel with the project. A `*` `.gitignore`
+ * keeps the target project's `git status` clean without editing its own
+ * `.gitignore`.
+ */
+export const MEMORY_DIR = path.join(WORKING_DIR, ".memory");
+
+/** Create `.memory/` and all its sub-directories. */
+export function ensureMemoryDir(): void {
+  fs.mkdirSync(MEMORY_DIR, { recursive: true });
+  fs.mkdirSync(path.join(MEMORY_DIR, "users"), { recursive: true });
+  fs.mkdirSync(path.join(MEMORY_DIR, "daily"), { recursive: true });
+  fs.mkdirSync(path.join(MEMORY_DIR, "modules"), { recursive: true });
+  fs.mkdirSync(path.join(MEMORY_DIR, "stm"), { recursive: true });
+  fs.mkdirSync(path.join(MEMORY_DIR, "index"), { recursive: true });
+  fs.mkdirSync(path.join(MEMORY_DIR, "bm25"), { recursive: true });
+
+  const ignoreFile = path.join(MEMORY_DIR, ".gitignore");
+  if (!fs.existsSync(ignoreFile)) {
+    fs.writeFileSync(ignoreFile, "*\n");
+  }
+}
+
+/**
  * Create an agent metadata directory (`.agent`, `.agent-todos`, ...) and drop a
  * `.gitignore` inside it. A `*` ignore keeps the target project's `git status`
  * clean without editing the project's own `.gitignore`.
