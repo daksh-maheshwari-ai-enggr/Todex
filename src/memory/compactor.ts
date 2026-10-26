@@ -99,7 +99,7 @@ export async function compactSTM(
     summary: newSummary,
     turns: keptMessages
       .map((m) => ({
-        role: isHumanMessage(m) ? "user" : "assistant",
+        role: (isHumanMessage(m) ? "user" : "assistant") as "user" | "assistant",
         content: typeof m.content === "string" ? m.content : "",
         ts: new Date().toISOString(),
       }))

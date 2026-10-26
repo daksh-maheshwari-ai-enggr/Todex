@@ -11,6 +11,7 @@ import { gitTools } from "./git";
 import { graphTools } from "./importGraph";
 import { ragTools } from "./rag";
 import { agentMemoryTools } from "./ProjectContextBuilder";
+import { createMemoryTools, type MemoryAgentContext } from "../memory/agent";
 import {
   write_todos,
   read_todos,
@@ -52,8 +53,20 @@ export const toolGroups: Record<string, StructuredToolInterface[]> = {
   /** Semantic search + embedding over the codebase. */
   rag: ragTools,
 
-  /** Persistent .agent/ project + module memory. */
+  /** Persistent .memory/ project + module memory (legacy agent context builder). */
   memory: agentMemoryTools,
+
+  /**
+   * Memory agent tools — LTM/STM write, read, and compaction.
+   *
+   * Bound to a fixed session id at registry build time so the tools resolve
+   * userId/sessionId once. The memory agent subagent is the intended caller;
+   * the main agent hands it tasks via the `task` tool.
+   */
+  memoryAgent: createMemoryTools({
+    model: undefined,
+    sessionId: `session-${process.pid}`,
+  }),
 
   /** Workflow TODO planning and dependency scheduling. */
   todo: [

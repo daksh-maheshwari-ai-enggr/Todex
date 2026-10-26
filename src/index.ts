@@ -3,6 +3,9 @@
 // Must load before workspace-aware modules.
 import "./bootstrap";
 
+import { ensureMemoryDir } from "./workspace";
+ensureMemoryDir();
+
 import { confirmWorkspace } from "./trust";
 
 import { HumanMessage } from "@langchain/core/messages";

@@ -52,7 +52,7 @@ export function buildSummarizationMiddleware(options: {
     model: options.model,
     trigger: { tokens: triggerTokens, messages: 3 },
     keep: { tokens: keepTokens, messages: keepMessages },
-    tokenCounter: countTokensApproximately,
+    tokenCounter: (msgs) => countTokensApproximately(msgs),
     summaryPrompt:
       options.summaryPrompt ??
       `You are maintaining a running summary of an AI coding agent's short-term memory.
@@ -75,9 +75,9 @@ export async function trimToBudget(
   maxTokens: number
 ): Promise<BaseMessage[]> {
   if (!messages.length) return [];
-  return trimMessages({
+  return trimMessages(messages, {
     maxTokens,
-    tokenCounter: countTokensApproximately,
+    tokenCounter: (msgs) => countTokensApproximately(msgs),
     strategy: "last",
   });
 }

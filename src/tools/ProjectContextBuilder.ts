@@ -19,7 +19,7 @@ import { ensureMetadataDir } from "../workspace";
  * └── embeddings.json          <- RAG embedding tracking
  */
 
-const AGENT_DIR = path.join(WORKING_DIR, ".agent");
+const AGENT_DIR = path.join(WORKING_DIR, ".memory");
 const INDEX_PATH = path.join(AGENT_DIR, "index.md");
 const MODULES_DIR = path.join(AGENT_DIR, "modules");
 const GRAPH_PATH = path.join(AGENT_DIR, "graph.json");

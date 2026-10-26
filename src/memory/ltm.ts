@@ -1,9 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import {
-  ensureMemoryDir,
-  usersDir,
+import { ensureMemoryDir } from "../workspace";
+import {usersDir,
   dailyDir,
   modulesDir,
   indexPath,

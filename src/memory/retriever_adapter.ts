@@ -1,7 +1,6 @@
 import { BaseRetriever } from "@langchain/core/retrievers";
 import { Document } from "@langchain/core/documents";
 import type { BaseLanguageModel } from "@langchain/core/language_models/base";
-import type { Callbacks } from "@langchain/core/callbacks/base";
 
 import { buildIndex } from "./bm25";
 import { readBM25Index, writeBM25Index } from "./store";
@@ -32,6 +31,8 @@ export type MemoryRetrieverOptions = {
 };
 
 export class MemoryRetriever extends BaseRetriever<Record<string, unknown>> {
+  lc_namespace: string[] = ["todex", "memory"];
+
   private userId: string;
   private limit: number;
   private category?: string;
@@ -64,10 +65,10 @@ export class MemoryRetriever extends BaseRetriever<Record<string, unknown>> {
     return this.bm25Index as BM25Index;
   }
 
-  private async _getRelevantDocuments(
+  async _getRelevantDocuments(
     query: string,
-    _config?: { callbacks?: Callbacks }
-  ): Promise<Document[]> {
+    _callbacks?: any
+  ): Promise<Document<any>[]> {
     const index = this.ensureIndex();
     const hits = await retrieve({
       query,
