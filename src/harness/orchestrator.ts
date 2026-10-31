@@ -3,6 +3,7 @@ import type { BaseLanguageModel } from "@langchain/core/language_models/base";
 
 import { createHandoffTool } from "./handoff";
 import { transferTool } from "./transferTool";
+import { observabilityMiddleware } from "../middleware/observability";
 
 /**
  * OrchestratorAgent — the top-level agent.
@@ -54,6 +55,7 @@ export function createOrchestrator(config: OrchestratorConfig) {
   return createAgent({
     model,
     tools: [handoffTool, transferTool],
+    middleware: [observabilityMiddleware({ agentLabel: "orchestrator" })],
     systemPrompt: ORCHESTRATOR_PROMPT,
   });
 }
