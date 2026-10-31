@@ -1,6 +1,7 @@
 import { createAgent } from "langchain";
 import { buildTools } from "./tools";
 import { createModel } from "./model";
+import { createOrchestrator } from "./harness/orchestrator";
 
 export const SYSTEM_PROMPT = `
 You are a production-level AI coding agent working inside a sandboxed working
@@ -64,22 +65,12 @@ Rules:
 /**
  * Build the coding agent.
  *
- * Subagents get every non-task tool; the parent gets the same set plus the
- * `task` tool so it can spawn focused subagents.
+ * The agent is now an orchestrator: it decides whether to handle a task
+ * directly (full tool bag) or delegate it to a specialist via the handoff
+ * tool. Specialists get only the tools the ToolSelector curated for their
+ * task, which keeps context small and behaviour predictable.
  */
 export function createCodingAgent() {
   const model = createModel();
-
-  const subagentTools = buildTools();
-  const tools = buildTools({
-    model,
-    includeTask: true,
-    taskConfig: { tools: subagentTools },
-  });
-
-  return createAgent({
-    model,
-    tools,
-    systemPrompt: SYSTEM_PROMPT,
-  });
+  return createOrchestrator({ model });
 }
