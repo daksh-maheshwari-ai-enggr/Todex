@@ -53,6 +53,7 @@ export function createHandoffTool(options: {
           .filter(Boolean)
           .join("\n\n");
 
+        // Execute the specialist synchronously for now to avoid parallelism issues
         const result = await specialist.invoke(
           { messages: [new HumanMessage(fullPrompt)] },
           { ...toolConfig }

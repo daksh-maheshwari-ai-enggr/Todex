@@ -1,65 +1,28 @@
 import { createAgent } from "langchain";
-import { z } from "zod";
-import { getToolManifest, renderToolManifest } from "../tools";
+import { renderToolManifest } from "../tools";
 
-/**
- * ToolSelectorAgent — picks the minimal tool subset for a task.
- *
- * Instead of every agent seeing the full tool bag, the orchestrator asks
- * this lightweight agent to curate a list. The specialist then receives
- * only those tools, which keeps its context small and its behaviour
- * predictable.
- *
- * The agent reads the tool manifest (name + one-line description, already
- * built in `src/tools/index.ts`) and returns a JSON list of tool names.
- */
+export const TOOL_SELECTOR_PROMPT = 
+  "You are a tool selector agent. Your job is to pick the smallest set of " +
+  "tools that can complete a given task.\n\n" +
+  "You are given a manifest of every available tool, grouped by category.\n" +
+  "Rules:\n" +
+  "- Return ONLY a JSON array of tool names. No prose, no markdown fences.\n" +
+  "- Pick the minimal set. Prefer 2–6 tools; never more than 10.\n" +
+  "- If the task can be done without tools, return an empty array [].\n" +
+  "- Never invent tool names that are not in the manifest.\n\n" +
+  "Output format (exact):\n" +
+  "[\"tool_name_one\", \"tool_name_two\"]";
 
-export const TOOL_SELECTOR_PROMPT = `
-You are a tool selector agent. Your job is to pick the smallest set of
-tools that can complete a given task.
-
-You are given a manifest of every available tool, grouped by category.
-Each entry is: name — one-line description.
-
-Rules:
-- Return ONLY a JSON array of tool names. No prose, no markdown fences.
-- Pick the minimal set. Prefer 2–6 tools; never more than 10.
-- If the task can be done without tools, return an empty array [].
-- Never invent tool names that are not in the manifest.
-- If a task needs a tool that is not listed, say so by returning an empty
-  array and the orchestrator will fall back to the full set.
-
-Output format (exact):
-["tool_name_one", "tool_name_two"]
-`.trim();
-
-export type ToolSelectorResult = {
-  tools: string[];
-  reasoning?: string;
-};
-
-/**
- * Build the tool selector agent.
- *
- * `model` should be a fast/cheap model — selection is a small bounded task
- * and does not need the main reasoning model.
- */
 export function createToolSelectorAgent(model: any) {
   const manifest = renderToolManifest();
 
   return createAgent({
     model,
     tools: [],
-    systemPrompt: `${TOOL_SELECTOR_PROMPT}\n\nAvailable tools:\n\n${manifest}`,
+    systemPrompt: TOOL_SELECTOR_PROMPT + "\n\nAvailable tools:\n\n" + manifest,
   });
 }
 
-/**
- * Ask the tool selector to curate a tool list for a task.
- *
- * Returns the tool names, or an empty array when the agent could not
- * decide (fail-open — the caller falls back to the full tool set).
- */
 export async function selectTools(
   agent: ReturnType<typeof createToolSelectorAgent>,
   task: string
@@ -69,7 +32,7 @@ export async function selectTools(
       messages: [
         {
           role: "user",
-          content: `Task: ${task}`,
+          content: "Task: " + task,
         },
       ],
     });
@@ -90,19 +53,62 @@ export async function selectTools(
     }
 
     // Strip markdown fences if the model added them.
+    const fence = "```";
     const cleaned = text
-      .replace(/```(?:json)?/g, "")
-      .replace(/```/g, "")
+      .split(fence + "json")
+      .join("")
+      .split(fence)
+      .join("")
       .trim();
 
-    const parsed = JSON.parse(cleaned);
-    if (Array.isArray(parsed)) {
-      return parsed.filter((t) => typeof t === "string");
+    // Strategy 1: Look for all [...] blocks and try to parse them
+    const arrayRegex = /\[[\s\S]*?\]/g;
+    const matches = cleaned.match(arrayRegex) ?? [];
+    
+    for (const match of matches) {
+      try {
+        const candidate = JSON.parse(match);
+        if (Array.isArray(candidate) && candidate.every((t: any) => typeof t === "string")) {
+          return candidate;
+        }
+      } catch {
+        // Continue to next match
+      }
     }
+
+    // Strategy 2: Look for { "tools": [...] }
+    const objectRegex = /\{[\s\S]*?\}/g;
+    const objMatches = cleaned.match(objectRegex) ?? [];
+    for (const match of objMatches) {
+      try {
+        const candidate = JSON.parse(match);
+        if (candidate && typeof candidate === "object" && Array.isArray(candidate.tools)) {
+          return candidate.tools.filter((t: any) => typeof t === "string");
+        }
+      } catch {
+        // Continue
+      }
+    }
+
+    // Strategy 3: Fallback substring search
+    const first = cleaned.indexOf("[");
+    const close = cleaned.lastIndexOf("]");
+    if (first >= 0 && close > first) {
+      const substring = cleaned.slice(first, close + 1);
+      try {
+        const candidate = JSON.parse(substring);
+        if (Array.isArray(candidate)) {
+          return candidate.filter((t: any) => typeof t === "string");
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     return [];
   } catch (error) {
     console.warn(
-      `[ToolSelector] selection failed: ${error instanceof Error ? error.message : String(error)}`
+      "[ToolSelector] selection failed: " + (error instanceof Error ? error.message : String(error))
     );
     return [];
   }
